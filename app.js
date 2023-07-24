@@ -1,5 +1,12 @@
 
 require('dotenv').config()
+
+
+//var md5 = require('md5');//for hashing passwords
+const bcrypt = require('bcrypt');//for bcrypt with salting rounds
+const saltRounds = 10;
+
+
 const express=require("express")
 const app= express();
 const encrypt=require("mongoose-encryption")
@@ -25,7 +32,7 @@ const userSchema=mongoose.Schema({
 });
 //encryption being done using npm mongoose-encryption
 const secret=process.env.SECRET;//using the .env
-userSchema.plugin(encrypt,{secret:secret, encryptedFields:["password"]});
+//userSchema.plugin(encrypt,{secret:secret, encryptedFields:["password"]});
 const User=mongoose.model("User",userSchema);
 
 
@@ -43,14 +50,12 @@ app.post("/login",async function(request,response)
     await User.findOne({email:request.body.username})
     .then(function(user)
     {if(user)
-        {
-            if(user.password===request.body.password)
-            {
-                response.render("secrets");
-            }
-            else{
-                console.log("Not found")
-            }
+        {//using bcrypt
+            bcrypt.compare(request.body.password,user.password, function(err, result) {
+               if(result===true)
+               response.render("secrets")
+            });
+            
         }
         else{
             console.log("Not found")
@@ -73,21 +78,24 @@ app.get("/register",function(request,response)
 
 app.post("/register",function(request,response)
 {
-    const user= new User({
-        email:request.body.username,
-        password:request.body.password
-
-
-    })
-    user.save()
-    .then(function()
-    {
-        response.render("secrets")
-    })
-    .catch(function(err)
-    {
-        console.log(err)
-    })
+    bcrypt.hash(request.body.password, saltRounds, function(err, hash) {
+        const user= new User({
+            email:(request.body.username),
+            password:hash
+    
+    
+        })
+        user.save()
+        .then(function()
+        {
+            response.render("secrets")
+        })
+        .catch(function(err)
+        {
+            console.log(err)
+        })
+});
+   
 })
 
 
